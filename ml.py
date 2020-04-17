@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 def load_housing_data(housing_path=HOUSING_PATH):
     csv_path = os.path.join(housing_path, "housing.csv")
@@ -22,7 +23,7 @@ def main():
     housing.hist(bins=50, figsize=(20, 15))
     #plt.show()
 
-    train_set, test_set = split_train_test(housing, 0.2)
+    train_set, test_set = train_test_split(housing, test_size=0.2, random_state=42)
     print(len(train_set), "train +", len(test_set), "test")
 
 if __name__ == '__main__':

@@ -21,6 +21,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import cross_val_score
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
+import hashlib
 
 
 def load_housing_data(housing_path=HOUSING_PATH):
@@ -35,14 +36,35 @@ def split_train_test(data, test_ratio):
     train_indices = shuffled_indices[test_set_size:]
     return data.iloc[train_indices], data.iloc[test_indices]
 
+def test_set_check(identifier, test_ratio, hash):
+    return hash(np.int64(identifier)).digest()[-1] < 256 * test_ratio
+
+
+def split_train_test_by_id(data, test_ratio, id_column, hash=hashlib.md5):
+    ids = data[id_column]
+    in_test_set = ids.apply(lambda id_: test_set_check(id_, test_ratio, hash))
+    return data.loc[~in_test_set], data.loc[in_test_set]
+
+
+
 def main():
     housing = load_housing_data()
-    #print(housing.info())
+    print(housing.head())
+    print(housing.info())
+
+    housing["ocean_proximity"].value_counts()
+    housing.describe()
+
+
     housing.hist(bins=50, figsize=(20, 15))
-    #plt.show()
+    plt.show()
 
     train_set, test_set = train_test_split(housing, test_size=0.2, random_state=42)
     print(len(train_set), "train +", len(test_set), "test")
+
+    housing_with_id = housing.reset_index()
+    housing_with_id["id"] = housing["longitude"] * 1000 + housing["latitude"]
+    train_set, test_set = split_train_test_by_id(housing_with_id, 0.2, "id")
 
     housing["income_cat"] = np.ceil(housing["median_income"] / 1.5)
     housing["income_cat"].where(housing["income_cat"] < 5, 5.0, inplace=True)
@@ -52,7 +74,7 @@ def main():
         strat_train_set = housing.loc[train_index]
         strat_test_set = housing.loc[test_index]
 
-    #print(housing["income_cat"].value_counts()/len(housing))
+    print(housing["income_cat"].value_counts()/len(housing))
 
     for set in (strat_train_set, strat_test_set):
         set.drop(["income_cat"], axis=1, inplace=True)
@@ -69,10 +91,10 @@ def main():
                  c="median_house_value", cmap=plt.get_cmap("jet"), colorbar=True,
                  )
     plt.legend()
-    #plt.show()
+    plt.show()
 
     corr_matrix = housing.corr()
-    #print(corr_matrix["median_house_value"].sort_values(ascending=False))
+    print(corr_matrix["median_house_value"].sort_values(ascending=False))
 
     attributes = ["median_house_value", "median_income", "total_rooms",
                   "housing_median_age"]
@@ -80,14 +102,14 @@ def main():
 
     housing.plot(kind="scatter", x="median_income", y="median_house_value",
                  alpha=0.1)
-    #plt.show()
+    plt.show()
 
     housing["rooms_per_household"] = housing["total_rooms"] / housing["households"]
     housing["bedrooms_per_room"] = housing["total_bedrooms"] / housing["total_rooms"]
     housing["population_per_household"] = housing["population"] / housing["households"]
 
     corr_matrix = housing.corr()
-    #print(corr_matrix["median_house_value"].sort_values(ascending=False))
+    print(corr_matrix["median_house_value"].sort_values(ascending=False))
 
     housing = strat_train_set.drop("median_house_value", axis=1)
     housing_labels = strat_train_set["median_house_value"].copy()
@@ -114,7 +136,7 @@ def main():
 
     encoder = OneHotEncoder()
     housing_cat_1hot = encoder.fit_transform(housing_cat_encoded.reshape(-1, 1))
-    #print(housing_cat_1hot)
+    print(housing_cat_1hot)
     print(housing_cat_1hot.toarray())
 
     encoder = LabelBinarizer()
